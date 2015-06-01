@@ -1,0 +1,5 @@
+# video files will not be commited
+images/**
+
+# python compiled files also will not be commited
+*.pyc
