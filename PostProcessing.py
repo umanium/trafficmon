@@ -22,7 +22,7 @@ def neighbours(pix, width, height, x, y, nx=1 , ny=1 ):
 
 def cleanPixels(img):
     # height, width = img.shape
-    out1 = cv2.erode(img, np.ones((2,2), np.uint8), iterations=2)
+    out1 = cv2.erode(img, np.ones((2,2), np.uint8), iterations=1)
     out2 = cv2.dilate(out1, np.ones((2,2), np.uint8), iterations=3)
     out = cv2.erode(out2, np.ones((2,2), np.uint8), iterations=1)
     return out
@@ -35,3 +35,13 @@ def brighten(img, phi, theta):
 
 def labelRegions(img):
     width, height = img.size
+
+def foregroundDetection(frame, bg):
+    resultant = cv2.absdiff(frame, bg)
+    ret, fgMask = cv2.threshold(resultant,40,255,cv2.THRESH_BINARY)
+    clean = cleanPixels(fgMask)
+    contours, hierarchy = cv2.findContours(clean, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    rects = []
+    for contour in contours:
+        rects.append(cv2.boundingRect(contour))
+    return rects, clean

@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import PostProcessing
 
 """
 Author: Luqman A. M.
@@ -7,6 +8,14 @@ BackgroundSubtraction.py
 Background Subtraction Algorithms Object Detection in Video Processing
 Frame Difference, Running Average, Median, GMM, KDE
 """
+
+# class Frame Difference
+class FrameDifference():
+    def __init__(self, filename, N):
+        print "initializing Frame Difference..."
+        self.filename = filename
+        self.N = N
+        return
 
 # class Running Average
 class RunningAverage():
@@ -35,9 +44,17 @@ class RunningAverage():
             grayPict = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             newBg = self.apply(grayPict)
             
+            rects, fg = PostProcessing.foregroundDetection(grayPict, newBg)
+            # print rects
+            for box in rects:
+                x, y, w, h = box
+                cv2.rectangle(grayPict, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            # cv2.drawContours(grayPict, rects, -1, (0,255,0), 1)
+
             # showing
             cv2.imshow('img', grayPict)
             cv2.imshow('Background', self.bg)
+            cv2.imshow('Foreground', fg)
 
             self.bg = np.copy(newBg)
 
