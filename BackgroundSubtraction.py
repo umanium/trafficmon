@@ -34,14 +34,15 @@ class RunningAverage():
 
     def run(self):
         cVid = cv2.VideoCapture(self.file)
-        _,frame = cVid.read()
+        _, frame = cVid.read()
         grayPict = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         self.bg = np.uint8(grayPict)
 
         # applying background detection
         while True:
-            _,frame = cVid.read()
-            grayPict = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            _, frame = cVid.read()
+            grayPictRaw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            grayPict = PostProcessing.histEqualization(grayPictRaw)
             newBg = self.apply(grayPict)
             
             rects, fg = PostProcessing.foregroundDetection(grayPict, newBg)
@@ -53,6 +54,7 @@ class RunningAverage():
 
             # showing
             cv2.imshow('img', grayPict)
+            # cv2.imshow('imgNorm', grayPictNorm)
             cv2.imshow('Background', self.bg)
             cv2.imshow('Foreground', fg)
 

@@ -1,6 +1,16 @@
 import cv2
 import numpy as np
 
+def histEqualization(im, nbr_bins=256) :
+    """ Histogram equalization of a grayscale image. """
+    # get image histogram
+    imhist, bins = np.histogram(im.flatten(), nbr_bins, normed=True)
+    cdf = imhist.cumsum() # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1] # normalize
+    # use linear interpolation of cdf to find new pixel values
+    im2 = np.interp(im.flatten(), bins[:-1] ,cdf)
+    return cv2.convertScaleAbs(im2.reshape(im.shape))
+
 def morphological(im, operator = min, nx = 5, ny = 5):
     height, width = im.shape
     out_im = np.ones_like(im, 'uint8')
@@ -22,7 +32,7 @@ def neighbours(pix, width, height, x, y, nx=1 , ny=1 ):
 
 def cleanPixels(img):
     # height, width = img.shape
-    out1 = cv2.erode(img, np.ones((2,2), np.uint8), iterations=1)
+    out1 = cv2.erode(img, np.ones((2,2), np.uint8), iterations=2)
     out2 = cv2.dilate(out1, np.ones((2,2), np.uint8), iterations=3)
     out = cv2.erode(out2, np.ones((2,2), np.uint8), iterations=1)
     return out
@@ -38,9 +48,10 @@ def labelRegions(img):
 
 def foregroundDetection(frame, bg):
     resultant = cv2.absdiff(frame, bg)
-    ret, fgMask = cv2.threshold(resultant,40,255,cv2.THRESH_BINARY)
-    clean = cleanPixels(fgMask)
-    contours, hierarchy = cv2.findContours(clean, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    ret, fgMask = cv2.threshold(resultant,60,255,cv2.THRESH_BINARY)
+    cleanRaw = cleanPixels(fgMask)
+    clean = np.copy(cleanRaw)
+    contours, hierarchy = cv2.findContours(cleanRaw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     rects = []
     for contour in contours:
         rects.append(cv2.boundingRect(contour))

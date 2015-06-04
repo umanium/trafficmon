@@ -10,7 +10,7 @@ else:
     vidFile = sys.argv[1]
 
 print "Input video: ", vidFile
-back = RunningAverage(vidFile, 0.03)
+back = RunningAverage(vidFile, 0.02)
 back.run()
 
 back2 = MedianRecursive(vidFile)
