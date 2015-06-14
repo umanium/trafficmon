@@ -33,8 +33,8 @@ def neighbours(pix, width, height, x, y, nx=1 , ny=1 ):
 def cleanPixels(img):
     # height, width = img.shape
     out1 = cv2.erode(img, np.ones((2,2), np.uint8), iterations=2)
-    out2 = cv2.dilate(out1, np.ones((2,2), np.uint8), iterations=3)
-    out = cv2.erode(out2, np.ones((2,2), np.uint8), iterations=1)
+    out2 = cv2.dilate(out1, np.ones((2,2), np.uint8), iterations=4)
+    out = cv2.erode(out2, np.ones((2,2), np.uint8), iterations=2)
     return out
     
 def brighten(img, phi, theta):
@@ -46,13 +46,29 @@ def brighten(img, phi, theta):
 def labelRegions(img):
     width, height = img.size
 
-def foregroundDetection(frame, bg):
+def foregroundDetection(frame, bg, rect = True):
     resultant = cv2.absdiff(frame, bg)
     ret, fgMask = cv2.threshold(resultant,60,255,cv2.THRESH_BINARY)
     cleanRaw = cleanPixels(fgMask)
     clean = np.copy(cleanRaw)
-    contours, hierarchy = cv2.findContours(cleanRaw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     rects = []
-    for contour in contours:
-        rects.append(cv2.boundingRect(contour))
+    if rect:
+        contours, hierarchy = cv2.findContours(cleanRaw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            rects.append(cv2.boundingRect(contour))
     return rects, clean
+
+def boundingBoxMask(rects, img):
+    mask = np.zeros_like(img)
+    for box in rects:
+        x, y, w, h = box
+        if x > 0 : x -= 1
+        if y > 0 : y -= 1
+        w += 1
+        h += 1
+        cv2.rectangle(mask, (x, y), (x+w, y+h), (255, 255, 255), -1)
+    newRects = []
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        newRects.append(cv2.boundingRect(contour))
+    return newRects

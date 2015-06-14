@@ -1,6 +1,7 @@
 import sys
 from BackgroundSubtraction import RunningAverage
 from BackgroundSubtraction import MedianRecursive
+from BackgroundSubtraction import GaussianMixture
 
 vidFile = ''
 if(len(sys.argv) < 2):
@@ -15,3 +16,5 @@ back.run()
 
 back2 = MedianRecursive(vidFile)
 back2.run()
+
+back3 = GaussianMixture(vidFile, 0.02, 3)
