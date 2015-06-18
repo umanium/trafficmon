@@ -1,7 +1,7 @@
 import sys
 from BackgroundSubtraction import RunningAverage
 from BackgroundSubtraction import MedianRecursive
-from BackgroundSubtraction import GaussianMixture
+from BackgroundSubtraction import OnlineKMeans
 
 vidFile = ''
 if(len(sys.argv) < 2):
@@ -17,4 +17,5 @@ back.run()
 back2 = MedianRecursive(vidFile)
 back2.run()
 
-back3 = GaussianMixture(vidFile, 0.02, 3)
+back3 = OnlineKMeans(vidFile, 0.02)
+back3.run()
