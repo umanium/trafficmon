@@ -1,30 +1,31 @@
 import sys
-from BackgroundSubtraction import FrameDifference
-from BackgroundSubtraction import RunningAverage
-from BackgroundSubtraction import MedianRecursive
-from BackgroundSubtraction import OnlineKMeans
-from BackgroundSubtraction import SingleGaussian
-from BackgroundSubtraction import KDE
+from BackgroundSubtractionImpl import FrameDifference
+from BackgroundSubtractionImpl import RunningAverage
+from BackgroundSubtractionImpl import MedianRecursive
+from BackgroundSubtractionImpl import OnlineKMeans
+from BackgroundSubtractionImpl import SingleGaussian
+from BackgroundSubtractionImpl import KDE
 
-vidFile = ''
-if(len(sys.argv) < 2):
+vid_file = ''
+if len(sys.argv) < 2:
     print 'Masukkan nama file video!'
     sys.exit(1)
 else:
-    vidFile = sys.argv[1]
+    vid_file = sys.argv[1]
 
-print "Input video: ", vidFile
+print "Input video: ", vid_file
 
-back = RunningAverage(vidFile, 0.015)
+back = RunningAverage(vid_file, 0.015)
 back.run()
 
-# back2 = MedianRecursive(vidFile)
+# back2 = MedianRecursive(vid_file)
 # back2.run()
 
-back3 = OnlineKMeans(vidFile, 0.02)
+back3 = OnlineKMeans(vid_file, 0.02)
 back3.run()
 
-back0 = SingleGaussian(vidFile, 0.9, 0.01)
+back0 = SingleGaussian(vid_file, 0.9, 0.01)
 back0.run()
 
-back99 = KDE(vidFile, 0.9, 0.01, 50)
+back99 = KDE(vid_file, 0.9, 0.05, 30)
+back99.run()
