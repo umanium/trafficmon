@@ -51,13 +51,56 @@ class RunningAverage(BackgroundSubtraction):
         return
 
     def apply(self, data):
-        rects, fg = PostProcessing.foregroundDetection(data, self.bg, False)
+        rects, fg = PostProcessing.foreground_detection(data, self.bg, False)
         new_bg = np.where(
             np.equal(fg, 0)
             , np.add(((1 - self.alpha) * self.bg), (self.alpha * data))
             , np.add(((1 - self.beta) * self.bg), (self.beta * data))
         )
         return cv2.convertScaleAbs(new_bg)
+
+    def run(self):
+        BackgroundSubtraction.run(self)
+
+
+# class Running Average 2 (with improvement)
+class RunningAverageWithThresholdImprovement(BackgroundSubtraction):
+    def __init__(self, filename, alpha):
+        print "initializing Running Average..."
+        BackgroundSubtraction.__init__(self, filename, False)
+        self.alpha = alpha
+        self.beta = 0.02
+        self.gamma = 3.2
+        self.threshold = None
+        return
+
+    def apply(self, pict):
+        if self.threshold is None:
+            self.threshold = np.multiply(np.ones_like(pict, 'float32'), 65)
+            fg = np.copy(pict)
+        else:
+            resultant = cv2.absdiff(pict, self.bg)
+            fg = np.where(np.greater(resultant, self.threshold), 255, 0)
+            new_bg = np.where(
+                np.equal(fg, 0)
+                , np.add(((1 - self.alpha) * self.bg), (self.alpha * pict))
+                , np.add(((1 - self.beta) * self.bg), (self.beta * pict))
+            )
+            self.threshold = self.threshold_update(fg, pict)
+            print self.threshold
+            self.bg = np.uint8(new_bg)
+        return cv2.convertScaleAbs(fg)
+
+    def threshold_update(self, fg, pict):
+        new_threshold = np.where(
+            np.equal(fg, 0),
+            np.add(
+                np.multiply((1 - self.alpha), self.threshold),
+                np.multiply(self.alpha, self.gamma * cv2.absdiff(pict, self.bg))
+            ),
+            self.threshold
+        )
+        return new_threshold
 
     def run(self):
         BackgroundSubtraction.run(self)
@@ -78,129 +121,6 @@ class MedianRecursive(BackgroundSubtraction):
         BackgroundSubtraction.run(self)
 
 
-# class Gaussian Mixture
-# unfinished, change the implementation, with gaussian (mean, variance, weight) is a numpy array
-class GaussianMixture():
-    class MixtureModel(object):
-        class Gaussian(object):
-            def __init__(self, val, w, var, pict):
-                self.mean = np.multiply(np.ones_like(pict, 'float64'), val)
-                self.variance = np.multiply(np.ones_like(pict, 'float64'), var)
-                self.weight = np.multiply(np.ones_like(pict, 'float64'), w)
-                return
-
-            def pdf(self, data):
-                return np.multiply((1. / (np.sqrt(self.variance * 2 * np.pi))),
-                                   np.exp((-((data - self.mean) ** 2)) / (2 * self.variance)))
-
-            def match(self, data):
-                diff = np.absolute(data - self.mean)
-                stdev = np.sqrt(self.variance)
-                if diff < (stdev * 2.5):
-                    return True
-                else:
-                    return False
-
-            def update(self, data, alpha):
-                # do calculations
-                distance = np.subtract(data, self.mean)
-                m = np.where(distance > (2.5 * np.sqrt(self.variance)), 0, 1)
-
-                # get new attributes
-                new_weight = (self.weight * (1 - alpha)) + (alpha * m)
-                self.weight = new_weight
-                rho = self.pdf(data) * alpha
-                new_mean = ((1 - rho) * self.mean) + (rho * data)
-                self.mean = new_mean
-                new_variance = ((1 - rho) * self.variance) + (rho * ((data - self.mean) ** 2))
-                self.variance = new_variance
-                return
-
-            def print_gaussian(self):
-                print self.weight
-
-        def __init__(self, k, pict):
-            self.K = k
-            self.gaussians = np.array([self.Gaussian((i * (256. / k)), (1. / k), 50, pict) for i in range(k)])
-            return
-
-        def update_gaussian(self, data):
-            for g in self.gaussians:
-                g.update(data, 0.03)
-                # g.printGaussian()
-            return
-
-        def print_model(self):
-            for g in self.gaussians:
-                g.print_gaussian()
-
-    def __init__(self, filename, alpha, K):
-        print "initializing Gaussian Mixture..."
-        self.file = filename
-        self.alpha = alpha
-        self.bg = None
-        self.models = None
-        self.K = K
-        return
-
-    def apply(self, pict):
-        self.models.update_gaussian(pict)
-        return pict
-
-    def run(self):
-        cvid = cv2.VideoCapture(self.file)
-        _, frame = cvid.read()
-        gray_pict = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        self.bg = np.uint8(gray_pict)
-
-        # build gaussian mixture models
-        self.models = self.MixtureModel(3, gray_pict)
-        # print gray_pict.shape, self.models.gaussians[0].mean.shape
-
-        # applying background detection
-        while True:
-            start = time.clock()
-            _, frame = cvid.read()
-            if frame is None:
-                break
-
-            gray_pict_raw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray_pict = PostProcessing.histEqualization(gray_pict_raw)
-            new_bg = self.apply(gray_pict)
-
-            rects, fg = PostProcessing.foregroundDetection(gray_pict, new_bg)
-            # print rects
-            for box in rects:
-                x, y, w, h = box
-                cv2.rectangle(gray_pict, (x, y), (x + w, y + h), (0, 255, 0), 1)
-
-            end = time.clock()
-
-            # print end - start
-
-            # showing
-            cv2.imshow('Background', self.bg)
-            cv2.imshow('Foreground', fg)
-            cv2.imshow('img', gray_pict)
-
-            self.bg = np.copy(new_bg)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        cv2.destroyAllWindows()
-        cvid.release()
-        return
-
-
-# class HiddenMarkov
-class HiddenMarkov():
-    def __init__(self, filename):
-        print "initializing Hidden Markov..."
-        self.file = filename
-        return
-
-
 # class OnlineKMeans
 class OnlineKMeans(BackgroundSubtraction):
     def __init__(self, filename, alpha):
@@ -210,7 +130,6 @@ class OnlineKMeans(BackgroundSubtraction):
         self.K = 0
         self.centroids = None
         self.w = None
-        self.totalN = self.K
         _, frame = self.vid_src.read()
         gray_pict = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         self.init_clusters(3, gray_pict)
@@ -219,12 +138,10 @@ class OnlineKMeans(BackgroundSubtraction):
     def init_clusters(self, k, pict):
         self.K = k
         self.centroids = [np.multiply(np.ones_like(pict, 'float64'), ((256. / k) * i)) for i in range(k)]
-        self.w = [np.multiply(np.ones_like(pict, 'float64'), (1. / k)) for i in range(k)]
-        self.totalN = k
+        self.w = [np.multiply(np.ones_like(pict, 'float64'), (1. / k))] * k
         return
 
     def apply(self, pict):
-        self.totalN += 1
 
         # get min diff & centroid assigned
         min_diff = np.multiply(np.ones_like(pict, 'float64'), -1)
@@ -239,8 +156,10 @@ class OnlineKMeans(BackgroundSubtraction):
 
         # update the centroids and weight
         for i in range(self.K):
-            update_centroids = np.multiply(np.ones_like(pict, 'float64'), (
-                np.add(self.centroids[i], self.alpha * np.subtract(pict, self.centroids[i]))))
+            update_centroids = np.multiply(
+                np.ones_like(pict, 'float64'),
+                (np.add(self.centroids[i], self.alpha * np.subtract(pict, self.centroids[i])))
+            )
             self.centroids[i] = np.where(np.equal(assigned, i), update_centroids, self.centroids[i])
             self.w[i] = np.where(np.equal(assigned, i), np.add(np.multiply((1. - self.alpha), self.w[i]), self.alpha),
                                  np.multiply((1. - self.alpha), self.w[i]))
@@ -350,5 +269,41 @@ class KDE(BackgroundSubtraction):
         return
 
     def run(self):
-        BackgroundSubtraction.run(self
-        )
+        BackgroundSubtraction.run(self)
+
+
+# unfinished classes
+
+# class Gaussian Mixture
+class GaussianMixture(BackgroundSubtraction):
+    def __init__(self, filename, alpha, k):
+        print "initializing Gaussian Mixture..."
+        BackgroundSubtraction.__init__(self, filename, False)
+        self.alpha = alpha
+        self.models = None
+        self.K = k
+        self.means = None
+        self.variance = None
+        self.weights = None
+        return
+
+    def apply(self, pict):
+
+        return pict
+
+    def run(self):
+        BackgroundSubtraction.run(self)
+
+
+# class HiddenMarkov
+class HiddenMarkov(BackgroundSubtraction):
+    def __init__(self, filename):
+        print "initializing Hidden Markov..."
+        BackgroundSubtraction.__init__(self, filename, False)
+        return
+
+    def apply(self, pict):
+        pass
+
+    def run(self):
+        BackgroundSubtraction.run(self)

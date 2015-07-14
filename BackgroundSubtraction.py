@@ -1,13 +1,12 @@
 import cv2
 import numpy as np
 import PostProcessing
-import time
 from abc import ABCMeta, abstractmethod
 
 """
 Author: Luqman A. M.
 BackgroundSubtraction.py
-Background Subtraction Algorithms Object Detection in Video Processing
+Background Subtraction Algorithms Object Detection in Video Processing (Abstract Class)
 Frame Difference, Running Average, Median, Online K-Means, 1-G, KDE
 """
 
@@ -23,7 +22,7 @@ class BackgroundSubtraction(object):
         self.prev_frame = None
 
     @abstractmethod
-    def apply(self, data):
+    def apply(self, pict):
         pass
 
     @abstractmethod
@@ -31,8 +30,8 @@ class BackgroundSubtraction(object):
         self.vid_src = cv2.VideoCapture(self.file)
         _, frame = self.vid_src.read()
         gray_pict_raw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray_pict = PostProcessing.histEqualization(gray_pict_raw)
-        self.bg = np.uint8(gray_pict)
+        gray_pict = PostProcessing.hist_equalization(gray_pict_raw)
+        self.bg = np.copy(gray_pict)
 
         # applying background detection
         while frame is not None:
@@ -42,19 +41,18 @@ class BackgroundSubtraction(object):
 
             self.prev_frame = np.copy(gray_pict)
             gray_pict_raw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray_pict = PostProcessing.histEqualization(gray_pict_raw)
+            gray_pict = PostProcessing.hist_equalization(gray_pict_raw)
 
             if self.is_background:
                 new_bg = self.apply(gray_pict)
 
-                raw_rects, fg = PostProcessing.foregroundDetection(gray_pict, new_bg)
-                rects = PostProcessing.boundingBoxMask(raw_rects, fg)
+                raw_rects, fg = PostProcessing.foreground_detection(gray_pict, new_bg)
+                rects = PostProcessing.bounding_box_mask(raw_rects, fg)
                 self.bg = new_bg
             else:
                 fg_raw = self.apply(gray_pict)
-
-                raw_rects, fg = PostProcessing.foregroundProcess(fg_raw)
-                rects = PostProcessing.boundingBoxMask(raw_rects, fg)
+                raw_rects, fg = PostProcessing.foreground_process(fg_raw)
+                rects = PostProcessing.bounding_box_mask(raw_rects, fg)
 
             # print rects
             for box in rects:
@@ -62,8 +60,7 @@ class BackgroundSubtraction(object):
                 cv2.rectangle(gray_pict, (x, y), (x + w, y + h), (0, 255, 0), 1)
 
             # showing
-            if self.is_background:
-                cv2.imshow('Background', self.bg)
+            cv2.imshow('Background', self.bg)
             cv2.imshow('Foreground', fg)
             cv2.imshow('img', gray_pict)
 

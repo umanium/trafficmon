@@ -15,17 +15,17 @@ else:
 
 print "Input video: ", vid_file
 
-back = RunningAverage(vid_file, 0.015)
+back = RunningAverage(vid_file, 0.01)
 back.run()
 
-# back2 = MedianRecursive(vid_file)
+# back2 = RunningAverage(vid_file, 0.015)
 # back2.run()
 
 back3 = OnlineKMeans(vid_file, 0.02)
 back3.run()
-
-back0 = SingleGaussian(vid_file, 0.9, 0.01)
-back0.run()
-
-back99 = KDE(vid_file, 0.9, 0.05, 30)
-back99.run()
+#
+# back0 = SingleGaussian(vid_file, 0.95, 0.01)
+# back0.run()
+#
+# back99 = KDE(vid_file, 0.9, 0.05, 30)
+# back99.run()
