@@ -54,15 +54,24 @@ class BackgroundSubtraction(object):
                 raw_rects, fg = PostProcessing.foreground_process(fg_raw)
                 rects = PostProcessing.bounding_box_mask(raw_rects, fg)
 
+            roi_imgs = []
+            moments = []
             # print rects
             for box in rects:
                 x, y, w, h = box
-                cv2.rectangle(gray_pict, (x, y), (x + w, y + h), (0, 255, 0), 1)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
+                roi = PostProcessing.get_roi_from_images(box, gray_pict)
+                # roi_imgs.append(roi)
+                cur_moment = cv2.moments(roi)
+                # moments.append(cur_moment)
+                cx = x + int(cur_moment['m10'] / cur_moment['m00'])
+                cy = y + int(cur_moment['m01'] / cur_moment['m00'])
+                cv2.circle(frame, (cx, cy), 3, (0, 255, 0), -1)
 
             # showing
             cv2.imshow('Background', self.bg)
             cv2.imshow('Foreground', fg)
-            cv2.imshow('img', gray_pict)
+            cv2.imshow('img', frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -71,3 +80,11 @@ class BackgroundSubtraction(object):
         self.vid_src.release()
         return
 
+
+class BackgroundSubtractionColor(object):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def apply(self, cur_image):
+        pass

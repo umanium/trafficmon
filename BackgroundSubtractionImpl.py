@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import PostProcessing
 from BackgroundSubtraction import BackgroundSubtraction
-import time
+from BackgroundSubtraction import BackgroundSubtractionColor
 
 """
 Author: Luqman A. M.
@@ -307,3 +307,130 @@ class HiddenMarkov(BackgroundSubtraction):
 
     def run(self):
         BackgroundSubtraction.run(self)
+
+
+# class Running Average Color
+class RunningAverageColor(BackgroundSubtractionColor):
+    # warping matrix -- for determining neighbor pixels
+    WARP_MATRIX = [
+        np.float32([[1, 0, -3], [0, 1, -3]]),
+        np.float32([[1, 0, 0], [0, 1, -3]]),
+        np.float32([[1, 0, 3], [0, 1, -3]]),
+        np.float32([[1, 0, 3], [0, 1, 0]]),
+        np.float32([[1, 0, 3], [0, 1, 3]]),
+        np.float32([[1, 0, 0], [0, 1, 3]]),
+        np.float32([[1, 0, -3], [0, 1, 3]]),
+        np.float32([[1, 0, -3], [0, 1, 0]])
+    ]
+
+    def __init__(self, params):
+        """
+        initialization of Running Average Algorithm
+        :param params: tuple consists of alpha and beta
+        """
+        BackgroundSubtractionColor.__init__(self)
+        self.bg = None
+        self.prev_frame = None
+        self.prev_prev_frame = None
+        self.alpha = params[0]
+        self.beta = params[1]
+
+    def apply(self, cur_image, cur_objects):
+        """
+        apply the algorithm for running average in color
+        :param cur_image: numpy array; a color image (RGB)
+        :param cur_objects: array consists of object squares
+        :return new_objects_box: array consists of new object squares
+        :return new_fg: binary image consists of image (black and white)
+        """
+
+        cols, rows, depth = cur_image.shape
+
+        if self.bg is None:
+            self.bg = np.copy(cur_image)
+
+        if self.prev_frame is None:
+            self.prev_frame = np.copy(cur_image)
+            self.prev_prev_frame = np.copy(cur_image)
+
+        # get neighbor pixels
+        neighbor_pixels = map(
+            lambda x: cv2.warpAffine(cur_image, x, (cols, rows)),
+            self.WARP_MATRIX
+        )
+
+        # update background
+        new_bg = np.add(((1 - self.alpha) * self.bg), (self.alpha * cur_image))
+
+        # compare neighbor pixel with current background
+        # neighbor_pixels_diff = map(
+        #     lambda x: np.absolute(np.subtract(new_bg, x)),
+        #     neighbor_pixels
+        # )
+
+        # get difference at this pixel
+        diff = np.absolute(np.subtract(new_bg, cur_image))
+        fg_raw = cv2.inRange(cv2.cvtColor(diff.astype('uint8'), cv2.COLOR_BGR2GRAY), 25, 255)
+        raw_boxes, new_fg = PostProcessing.foreground_process(fg_raw)
+        new_objects_box = PostProcessing.bounding_box_mask(raw_boxes, new_fg)
+
+        cv2.imshow('Background', new_bg.astype('uint8'))
+        self.bg = np.copy(new_bg)
+
+        self.prev_prev_frame = np.copy(self.prev_frame)
+        self.prev_frame = np.copy(cur_image)
+        return new_objects_box, new_fg
+
+    @staticmethod
+    def get_difference(cur_image, prev_image, threshold):
+        threshold_array = np.multiply(np.ones_like(cur_image, 'uint8'), threshold)
+        diff = np.absolute(np.subtract(cur_image, prev_image))
+        result = np.multiply(
+            np.ones_like(cur_image, 'uint8'),
+            np.where(
+                np.less(diff, threshold_array),
+                0,
+                255
+            )
+        )
+        return result
+
+
+# class Frame Difference Color
+class FrameDifferenceColor(BackgroundSubtractionColor):
+    def __init__(self, params):
+        """
+        initialization of Running Average Algorithm
+        :param params: tuple consists of threshold
+        """
+        self.threshold = params[0]
+        self.prev_image = None
+        return
+
+    def apply(self, cur_image):
+        """
+        apply the algorithm for running average in color
+        :param cur_image: numpy array; a color image (RGB)
+        :return new_objects_box: array consists of new object squares
+        :return new_fg: binary image consists of image (black and white)
+        """
+        cur_image_gray = cv2.cvtColor(cur_image, cv2.COLOR_BGR2GRAY)
+        if self.prev_image is not None:
+            threshold_array = np.multiply(np.ones_like(cur_image_gray, 'uint8'), self.threshold)
+            diff = np.absolute(np.subtract(cur_image_gray, self.prev_frame))
+            fg_raw = np.multiply(
+                np.ones_like(cur_image_gray, 'uint8'),
+                np.where(
+                    np.less(diff, threshold_array),
+                    0,
+                    255
+                )
+            )
+            raw_boxes, new_fg = PostProcessing.foreground_process(fg_raw)
+            new_objects_box = PostProcessing.bounding_box_mask(raw_boxes, new_fg)
+        else:
+            new_fg = np.zeros_like(cur_image_gray)
+            new_objects_box = []
+
+        self.prev_image = np.copy(cur_image_gray)
+        return new_objects_box, new_fg
