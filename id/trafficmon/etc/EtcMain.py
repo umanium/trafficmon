@@ -14,10 +14,11 @@ if __name__ == '__main__':
     vid_src = cv2.VideoCapture(video_src_file)
     _, frame = vid_src.read()
     pvs = PointValueScatter()
+    frame_count = 0
 
     # applying background detection
     while frame is not None:
-
+        frame_count += 1
         _, frame = vid_src.read()
         if frame is not None:
             h, w, d = frame.shape
@@ -26,4 +27,6 @@ if __name__ == '__main__':
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+    print w/2, h/2
+    print frame_count
     pvs.plot_histogram()

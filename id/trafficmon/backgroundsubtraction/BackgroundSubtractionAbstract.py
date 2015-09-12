@@ -12,5 +12,5 @@ class BackgroundSubtractionAbstract(object):
         self.background_model = None
         self.algorithm_name = name
 
-    def apply(self):
+    def apply(self, image):
         pass

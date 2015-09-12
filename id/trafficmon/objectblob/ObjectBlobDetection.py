@@ -1,5 +1,11 @@
+import sys
+import os.path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
 import numpy as np
 import cv2
+from id.trafficmon.objectblob.ObjectBlob import ObjectBlob
+from id.trafficmon.objectblob.ObjectBlobManager import ObjectBlobManager
 __author__ = 'Luqman'
 
 '''
@@ -12,14 +18,13 @@ class ObjectBlobDetection(object):
 
     prev_mask = None
     prev_contours = None
+    blob_manager = None
+    spatial_blob_manager = None
 
     def __init__(self, image_mask):
-        prev_mask = np.copy(image_mask)
+        self.prev_mask = np.copy(image_mask)
 
-    def form_blob(self, image_mask):
-        frame_diff = np.absolute(np.subtract(image_mask, self.prev_mask))
-
-    def get_contours(self, image_mask):
+    def get_contours(self, image_mask, reference_image):
         contours, hierarchy = cv2.findContours(image_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # eliminate all too-small contours
@@ -31,16 +36,25 @@ class ObjectBlobDetection(object):
                 # intersect = self.get_prev_contour(hull, image_mask)
                 contours_intermediate.append(hull)
 
+        # new blob manager generation
+        raw_blob_manager = ObjectBlobManager(contours_intermediate, reference_image)
+
+        # spatial evaluation
+        merge_list, removed_list = raw_blob_manager.spatial_evaluation()
+        spatial_blob_manager = raw_blob_manager.remove_and_merge(removed_list, merge_list)
+
         # tracking: membandingkan antara contour yg skrg dengan yg sebelumnya
-        # belom
-        self.prev_contours = contours_intermediate
+        if self.blob_manager is not None:
+            next_blob_manager = spatial_blob_manager.temporal_evaluation(self.blob_manager, reference_image)
+        else:
+            next_blob_manager = spatial_blob_manager.copy()
 
-        # for contour in contours:
-        #     rects.append(cv2.boundingRect(contour))
+        self.spatial_blob_manager = spatial_blob_manager.copy()
 
-        contours_clean = self.bounding_box_mask(contours_intermediate, image_mask)
-
-        return contours_clean
+        if next_blob_manager is not None:
+            self.blob_manager = next_blob_manager.copy()  # next_blob_manager.copy()
+        else:
+            self.blob_manager = spatial_blob_manager.copy()
 
     def get_prev_contour(self, contour, image):
         max_contour_area = 5
@@ -60,16 +74,25 @@ class ObjectBlobDetection(object):
 
         return intersect_contour
 
-    def merge_contours(self, contour1, contour2):
-        new_contour = contour1
-        return new_contour
-
     def bounding_box_mask(self, contours, img):
         mask = np.zeros_like(img)
         cv2.drawContours(mask, contours, -1, 1, thickness=-1)
 
-        newcontours = []
+        new_contours = []
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
-            newcontours.append(cv2.convexHull(cnt, returnPoints=True))
-        return newcontours
+            new_contours.append(cv2.convexHull(cnt, returnPoints=True))
+        return new_contours
+
+    def draw_blobs(self, image):
+        image_used = np.copy(image)
+        if self.blob_manager is not None:
+            image_result = self.blob_manager.draw_contours(image_used, True)
+        else:
+            image_result = np.copy(image_used)
+
+        # if self.spatial_blob_manager is not None:
+        #     image_result_2 = self.spatial_blob_manager.draw_contours(image_result, False)
+        # else:
+        #     image_result_2 = np.copy(image_result)
+        return image_result

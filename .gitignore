@@ -1,5 +1,6 @@
 # video files will not be commited
 images/**
+id/trafficmon/saved_images/**
 
 # python compiled files also will not be commited
 *.pyc
